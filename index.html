@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OLIVE TS — IoT Hub</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blue:       #1055A8;
+      --blue-light: #1976D2;
+      --blue-pale:  #E3EEF9;
+      --red:        #C62828;
+      --red-light:  #E53935;
+      --silver:     #78909C;
+      --silver-pale:#ECEFF1;
+      --bg:         #F4F7FB;
+      --surface:    #FFFFFF;
+      --surface2:   #EEF3F9;
+      --border:     #D6E2F0;
+      --text:       #0D1B2E;
+      --muted:      #5A7491;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── BACKGROUND ─── */
+    .bg-grid {
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(16,85,168,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16,85,168,0.05) 1px, transparent 1px);
+      background-size: 56px 56px;
+      pointer-events: none; z-index: 0;
+    }
+    .bg-glow {
+      position: fixed;
+      top: -10%; left: 50%; transform: translateX(-50%);
+      width: 1000px; height: 480px;
+      background: radial-gradient(ellipse, rgba(16,85,168,0.07) 0%, transparent 68%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ─── NAVBAR ─── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 52px; height: 68px;
+      background: rgba(244,247,251,0.94);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 1px 14px rgba(16,85,168,0.07);
+    }
+    .nav-logo img { height: 88px; object-fit: contain; }
+    .nav-right { display: flex; align-items: center; gap: 4px; }
+
+    .nav-item { position: relative; }
+    .nav-link {
+      display: flex; align-items: center; gap: 5px;
+      padding: 8px 16px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 12.5px; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s;
+      cursor: pointer; border: none; background: transparent;
+      font-family: 'Barlow', sans-serif;
+    }
+    .nav-link:hover, .nav-item:hover > .nav-link { color: var(--blue); background: var(--blue-pale); }
+    .nav-link .chev { transition: transform 0.25s; }
+    .nav-item:hover > .nav-link .chev { transform: rotate(180deg); }
+
+    /* Dropdown */
+    .dropdown {
+      position: absolute; top: calc(100% + 8px); right: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 12px 40px rgba(16,85,168,0.13);
+      min-width: 200px;
+      padding: 8px;
+      opacity: 0; visibility: hidden;
+      transform: translateY(-8px);
+      transition: opacity 0.22s, transform 0.22s, visibility 0.22s;
+    }
+    .nav-item:hover .dropdown { opacity: 1; visibility: visible; transform: translateY(0); }
+
+    .dropdown-label {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--muted); padding: 6px 12px 4px;
+    }
+    .dropdown-sub { position: relative; }
+    .dropdown-sub-trigger {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px;
+      font-size: 13px; font-weight: 600;
+      color: var(--text); border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .dropdown-sub-trigger:hover { background: var(--blue-pale); color: var(--blue); }
+    .sub-chev { transition: transform 0.2s; }
+    .dropdown-sub:hover .sub-chev { transform: rotate(-90deg); }
+
+    .dropdown-sub-menu {
+      position: absolute; left: calc(100% + 6px); top: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 12px 40px rgba(16,85,168,0.13);
+      min-width: 190px;
+      padding: 8px;
+      opacity: 0; visibility: hidden;
+      transform: translateX(-6px);
+      transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+    }
+    .dropdown-sub:hover .dropdown-sub-menu { opacity: 1; visibility: visible; transform: translateX(0); }
+
+    .sub-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px;
+      font-size: 13px; font-weight: 500;
+      color: var(--text); text-decoration: none;
+      border-radius: 6px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sub-link:hover { background: var(--blue-pale); color: var(--blue); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .dot-uni  { background: var(--blue); }
+    .dot-bank { background: var(--red); }
+    .dot-col  { background: var(--silver); }
+
+    .nav-contact {
+      padding: 9px 22px;
+      background: var(--blue); color: #fff !important;
+      border-radius: 7px;
+      font-size: 12.5px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      text-decoration: none; margin-left: 10px;
+      transition: background 0.2s, box-shadow 0.2s;
+      box-shadow: 0 3px 12px rgba(16,85,168,0.2);
+    }
+    .nav-contact:hover { background: var(--blue-light); box-shadow: 0 6px 20px rgba(16,85,168,0.3); }
+
+    /* ─── HERO ─── */
+    .hero {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 120px 24px 100px; text-align: center;
+    }
+    .hero-logo-wrap {
+      margin-bottom: 36px;
+      opacity: 0; animation: fadeUp 0.7s 0.35s forwards;
+    }
+    .hero-logo-wrap img {
+      height: 200px; object-fit: contain;
+      filter: drop-shadow(0 4px 20px rgba(16,85,168,0.16));
+    }
+    .hero-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(56px, 9vw, 108px);
+      letter-spacing: 0.03em; line-height: 0.95;
+      color: var(--text); margin-bottom: 20px;
+      opacity: 0; animation: fadeUp 0.7s 0.6s forwards;
+    }
+    .hero-title .acc-blue { color: var(--blue); }
+    .hero-title .acc-red  { color: var(--red); }
+    .hero-sub {
+      font-size: 14px; font-weight: 400;
+      color: var(--muted); letter-spacing: 0.2em;
+      text-transform: uppercase; margin-bottom: 12px;
+      opacity: 0; animation: fadeUp 0.7s 0.75s forwards;
+    }
+
+    /* ─── DIVIDER ─── */
+    .divider {
+      position: relative; z-index: 1;
+      max-width: 1140px; margin: 0 auto; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+    }
+
+    /* ─── SOLUTIONS SECTION ─── */
+    .section {
+      position: relative; z-index: 1;
+      padding: 96px 24px 120px;
+    }
+    .section-inner { max-width: 1140px; margin: 0 auto; }
+
+    .section-header {
+      text-align: center; margin-bottom: 80px;
+      opacity: 0; animation: fadeUp 0.7s 0.1s both;
+      animation-play-state: paused;
+    }
+    .section-header.visible { animation-play-state: running; }
+
+    .tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--blue-pale);
+      border: 1px solid rgba(16,85,168,0.2);
+      border-radius: 4px;
+      padding: 6px 16px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 20px; font-weight: 700;
+      letter-spacing: 0.25em; text-transform: uppercase;
+      color: var(--blue); margin-bottom: 20px;
+    }
+    .tag::before {
+      content: ''; width: 10px; height: 10px;
+      background: var(--blue); border-radius: 50%;
+      animation: blink 1.4s ease-in-out infinite;
+    }
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(44px, 6vw, 76px);
+      letter-spacing: 0.05em; line-height: 1;
+      color: var(--text); margin-bottom: 16px;
+    }
+    .section-title .accent { color: var(--blue); }
+    .section-desc {
+      font-size: 15px; color: var(--muted);
+      max-width: 520px; margin: 0 auto; line-height: 1.7;
+    }
+
+    /* ─── CATEGORY HEADERS ─── */
+    .category-header {
+      margin: 64px 0 26px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+    }
+    .category-header.first { margin-top: 8px; }
+    .category-label {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(28px, 3.4vw, 38px);
+      letter-spacing: 0.05em;
+      color: var(--text);
+      display: flex; align-items: center; gap: 14px;
+    }
+    .category-label .cat-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ─── AIRPRO BLOCK ─── */
+    .airpro-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 32px rgba(16,85,168,0.08);
+      opacity: 0; animation: fadeUp 0.7s 0.15s both;
+      animation-play-state: paused;
+    }
+    .airpro-block.visible { animation-play-state: running; }
+
+    .airpro-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 40px 52px;
+      background: linear-gradient(135deg, #EAF1FA 0%, #F4F7FB 100%);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap; gap: 24px;
+    }
+    .airpro-eyebrow {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.28em; text-transform: uppercase;
+      color: var(--blue-light); margin-bottom: 8px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .airpro-eyebrow::before { content: ''; width: 20px; height: 2px; background: var(--blue-light); }
+    .airpro-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 54px; letter-spacing: 0.06em;
+      color: var(--text); line-height: 1;
+    }
+    .airpro-name span { color: var(--blue); }
+    .airpro-tagline {
+      font-size: 14px; color: var(--muted); margin-top: 10px;
+      max-width: 380px; line-height: 1.65;
+    }
+    .airpro-stats { display: flex; gap: 36px; flex-wrap: wrap; }
+    .stat-box { text-align: center; }
+    .stat-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 38px; letter-spacing: 0.04em;
+      color: var(--blue); line-height: 1;
+    }
+    .stat-label {
+      font-size: 10.5px; font-weight: 700;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--muted); margin-top: 4px;
+    }
+
+    /* Sub-cards */
+    .sub-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .sub-card {
+      position: relative;
+      padding: 42px 36px 38px;
+      text-decoration: none; color: inherit;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+      transition: background 0.25s, transform 0.3s cubic-bezier(.22,.68,0,1.2);
+    }
+    .sub-card:last-child { border-right: none; }
+    .sub-card::after {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 3px;
+      transform: scaleX(0); transform-origin: left;
+      transition: transform 0.3s ease;
+    }
+    .sub-card-uni::after  { background: var(--blue); }
+    .sub-card-bank::after { background: var(--red); }
+    .sub-card-col::after  { background: var(--silver); }
+    .sub-card:hover { background: var(--bg); transform: translateY(-4px); }
+    .sub-card:hover::after { transform: scaleX(1); }
+
+    .sub-icon {
+      width: 52px; height: 52px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; margin-bottom: 24px;
+    }
+    .sub-card-uni  .sub-icon { background: rgba(16,85,168,0.1); }
+    .sub-card-bank .sub-icon { background: rgba(198,40,40,0.1); }
+    .sub-card-col  .sub-icon { background: rgba(120,144,156,0.12); }
+
+    .sub-cat {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10.5px; font-weight: 700;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .sub-card-uni  .sub-cat { color: var(--blue); }
+    .sub-card-bank .sub-cat { color: var(--red-light); }
+    .sub-card-col  .sub-cat { color: var(--silver); }
+
+    .sub-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 34px; letter-spacing: 0.04em;
+      color: var(--text); line-height: 1; margin-bottom: 12px;
+    }
+    .sub-desc {
+      font-size: 13.5px; color: var(--muted);
+      line-height: 1.65; margin-bottom: 28px;
+    }
+    .sub-cta {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+    }
+    .sub-card-uni  .sub-cta { color: var(--blue); }
+    .sub-card-bank .sub-cta { color: var(--red-light); }
+    .sub-card-col  .sub-cta { color: var(--silver); }
+    .sub-cta svg { transition: transform 0.22s; }
+    .sub-card:hover .sub-cta svg { transform: translateX(5px); }
+
+    /* ─── HEALTHCARE CARD ─── */
+    .sub-card-health .sub-icon { background: rgba(2,136,100,0.1); }
+    .sub-card-health .sub-cat  { color: #028864; }
+    .sub-card-health .sub-cta  { color: #028864; }
+    .sub-card-health::after    { background: #028864; }
+    .dot-health { background: #028864; }
+    .sub-card-health .coming-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(2,136,100,0.1);
+      border: 1px solid rgba(2,136,100,0.25);
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: #028864; margin-bottom: 20px;
+    }
+
+    /* ─── SCREENSHOT PLACEHOLDER SLOTS ─── */
+    .screenshot-row {
+      display: flex; gap: 16px; flex-wrap: wrap;
+      margin-top: 28px;
+    }
+    .screenshot-slot {
+      width: 150px; height: 320px;
+      border: 1.5px dashed var(--border);
+      border-radius: 16px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 10px;
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+    .screenshot-slot-icon { font-size: 26px; opacity: 0.4; }
+    .screenshot-slot-label {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted); text-align: center; padding: 0 12px;
+    }
+    @media (max-width: 768px) {
+      .screenshot-slot { width: 120px; height: 256px; }
+    }
+
+    .screenshot-slot[data-clickable="true"] { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+    .screenshot-slot[data-clickable="true"]:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(20,30,50,0.18); }
+
+    /* ─── LIGHTBOX ─── */
+    #lightbox-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(8,12,20,0.93);
+      z-index: 9999; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #lightbox-overlay img#lightbox-img {
+      max-width: 82vw; max-height: 82vh;
+      border-radius: 14px;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.55);
+      user-select: none;
+    }
+    .lightbox-btn {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      background: rgba(255,255,255,0.1); border: none; color: #fff;
+      font-size: 26px; width: 48px; height: 48px; border-radius: 50%;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .lightbox-btn:hover { background: rgba(255,255,255,0.22); }
+    #lightbox-prev { left: 20px; }
+    #lightbox-next { right: 20px; }
+    #lightbox-close {
+      position: absolute; top: 20px; right: 28px;
+      background: none; border: none; color: #fff;
+      font-size: 32px; line-height: 1; cursor: pointer;
+    }
+    #lightbox-counter {
+      position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+      color: rgba(255,255,255,0.85); font-size: 12px; font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+    @media (max-width: 768px) {
+      .lightbox-btn { width: 40px; height: 40px; font-size: 22px; }
+      #lightbox-prev { left: 8px; } #lightbox-next { right: 8px; }
+    }
+
+    /* ─── FOOTER ─── */
+    footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 48px 24px; text-align: center;
+      background: var(--surface);
+    }
+    .footer-logo img {
+      height: 34px; object-fit: contain;
+      filter: grayscale(0.2) opacity(0.5);
+      margin-bottom: 14px;
+    }
+    .footer-text {
+      font-size: 12px; color: var(--muted); letter-spacing: 0.05em;
+    }
+    .footer-text strong { color: var(--blue); font-weight: 600; }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.2} }
+    @keyframes pulse { 0%,100%{opacity:0.3}50%{opacity:1} }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 1100px) {
+      .sub-cards { grid-template-columns: repeat(2,1fr) !important; }
+      .sub-card:nth-child(2) { border-right: none; }
+      .sub-card:nth-child(1), .sub-card:nth-child(2) { border-bottom: 1px solid var(--border); }
+    }
+    @media (max-width: 900px) {
+      .sub-cards { grid-template-columns: 1fr !important; }
+      .sub-card { border-right: none !important; border-bottom: 1px solid var(--border) !important; }
+      .sub-card:last-child { border-bottom: none !important; }
+      .airpro-header { padding: 28px 24px; }
+    }
+    @media (max-width: 768px) {
+      nav { padding: 0 20px; }
+      .hero { padding: 100px 20px 80px; }
+      .section { padding: 72px 16px 96px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+
+  <!-- ── NAVBAR ── -->
+  <nav>
+    <div class="nav-logo">
+      <img src="LOGO.png" alt="OLIVE Technical Services" />
+    </div>
+    <div class="nav-right">
+
+      <!-- Solutions with AIRPRO flyout -->
+      <div class="nav-item">
+        <button class="nav-link">
+          Projects
+          <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="dropdown">
+          <div class="dropdown-label">Dashboards</div>
+          <div class="dropdown-sub">
+            <div class="dropdown-sub-trigger">
+              AIRPRO
+              <svg class="sub-chev" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="dropdown-sub-menu">
+              <a href="https://olivetshub.github.io/airpro_universities-/" target="_blank" class="sub-link">
+                <span class="dot dot-uni"></span> Universities
+              </a>
+              <a href="https://olivetshub.github.io/airpro_bank/" target="_blank" class="sub-link">
+                <span class="dot dot-bank"></span> Banks
+              </a>
+              <a href="https://olivetshub.github.io/Airpro-colleges/" target="_blank" class="sub-link">
+                <span class="dot dot-col"></span> Colleges
+              </a>
+              <a href="https://olivetshub.github.io/airpro_healthcare/" target="_blank" class="sub-link" id="nav-health-entry">
+                <span class="dot dot-health"></span> Healthcare
+              </a>
+            </div>
+          </div>
+          <a href="https://olivetshub.github.io/StratEgic-Warehouse-EWR-/" target="_blank" class="dropdown-sub-trigger" style="border-radius:6px;text-decoration:none;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;font-size:13px;font-weight:600;color:var(--text);transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(100,60,180,0.08)';this.style.color='#6438B4'" onmouseout="this.style.background='';this.style.color='var(--text)'">
+            Strategic Warehousing
+          </a>
+          <a href="https://olivetshub.github.io/engro-dashboard/" target="_blank" class="dropdown-sub-trigger" style="border-radius:6px;text-decoration:none;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;font-size:13px;font-weight:600;color:var(--text);transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(0,112,192,0.08)';this.style.color='#0070C0'" onmouseout="this.style.background='';this.style.color='var(--text)'">
+            Remote Well Management
+          </a>
+          <a href="#wpm-block" class="dropdown-sub-trigger" style="border-radius:6px;text-decoration:none;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;font-size:13px;font-weight:600;color:var(--text);transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(0,150,214,0.08)';this.style.color='#0096D6'" onmouseout="this.style.background='';this.style.color='var(--text)'">
+            Water Pumps Management
+          </a>
+          <a href="#passco-block" class="dropdown-sub-trigger" style="border-radius:6px;text-decoration:none;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;font-size:13px;font-weight:600;color:var(--text);transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(184,134,11,0.08)';this.style.color='#B8860B'" onmouseout="this.style.background='';this.style.color='var(--text)'">
+            PASSCO Warehouse Monitoring
+          </a>
+          <a href="#ofw-block" class="dropdown-sub-trigger" style="border-radius:6px;text-decoration:none;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;font-size:13px;font-weight:600;color:var(--text);transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(46,125,50,0.08)';this.style.color='#2E7D32'" onmouseout="this.style.background='';this.style.color='var(--text)'">
+            On-Farm Water Management
+          </a>
+          <a href="https://olivetshub.github.io/AIRPRO/" target="_blank" class="dropdown-sub-trigger" style="border-radius:6px;text-decoration:none;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;font-size:13px;font-weight:600;color:var(--text);transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(25,118,210,0.08)';this.style.color='#1976D2'" onmouseout="this.style.background='';this.style.color='var(--text)'">
+            AIRPRO Website
+          </a>
+          <a href="#heydial-block" class="dropdown-sub-trigger" style="border-radius:6px;text-decoration:none;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;font-size:13px;font-weight:600;color:var(--text);transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(2,136,209,0.08)';this.style.color='#0288D1'" onmouseout="this.style.background='';this.style.color='var(--text)'">
+            HeyDial
+          </a>
+
+          <div class="dropdown-label" style="margin-top:16px;">Mobile Apps</div>
+          <a href="#eldracare-block" class="dropdown-sub-trigger" style="border-radius:6px;text-decoration:none;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;font-size:13px;font-weight:600;color:var(--text);transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(106,27,154,0.08)';this.style.color='#6A1B9A'" onmouseout="this.style.background='';this.style.color='var(--text)'">
+            EldraCare
+          </a>
+          <a href="#fairfare-block" class="dropdown-sub-trigger" style="border-radius:6px;text-decoration:none;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;font-size:13px;font-weight:600;color:var(--text);transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(239,108,0,0.08)';this.style.color='#EF6C00'" onmouseout="this.style.background='';this.style.color='var(--text)'">
+            FairFare Carpool
+          </a>
+          <a href="#solar-block" class="dropdown-sub-trigger" style="border-radius:6px;text-decoration:none;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;font-size:13px;font-weight:600;color:var(--text);transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(249,168,37,0.08)';this.style.color='#F9A825'" onmouseout="this.style.background='';this.style.color='var(--text)'">
+            Solar Monitoring App
+          </a>
+          <a href="#morning-routine-block" class="dropdown-sub-trigger" style="border-radius:6px;text-decoration:none;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;font-size:13px;font-weight:600;color:var(--text);transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(216,27,96,0.08)';this.style.color='#D81B60'" onmouseout="this.style.background='';this.style.color='var(--text)'">
+            Morning Routine
+          </a>
+
+          <div class="dropdown-label" style="margin-top:16px;">IoT Systems</div>
+          <a href="#sgp-block" class="dropdown-sub-trigger" style="border-radius:6px;text-decoration:none;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;font-size:13px;font-weight:600;color:var(--text);transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(183,28,28,0.08)';this.style.color='#B71C1C'" onmouseout="this.style.background='';this.style.color='var(--text)'">
+            Smart Guard Pro
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── HEADER ── -->
+  <section class="hero">
+    <div class="hero-logo-wrap">
+      <img src="LOGO.png" alt="OLIVE Technical Services" />
+    </div>
+    <h1 class="hero-title">
+      <span class="acc-blue">OLIVE</span> TS<br>
+      <span class="acc-red">IoT</span> Projects
+    </h1>
+    <p class="hero-sub">A showcase of IoT dashboards, devices, and mobile applications</p>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ── SOLUTIONS ── -->
+  <section class="section" id="solutions">
+    <div class="section-inner">
+
+      <div class="section-header" id="sec-header">
+        <div class="section-title" style="font-size:clamp(32px,4vw,48px);">Projects</div>
+      </div>
+
+      <div class="category-header first">
+        <div class="category-label"><span class="cat-dot" style="background:var(--blue);"></span>Dashboards</div>
+      </div>
+
+      <div class="airpro-block" id="airpro-block">
+
+        <div class="airpro-header">
+          <div>
+            <div class="airpro-eyebrow">IoT Solution</div>
+            <div class="airpro-name">AIR<span>PRO</span></div>
+            <div class="airpro-tagline">Real-time environmental intelligence for institutions — air quality, analytics, and compliance in one platform.</div>
+          </div>
+          <div class="airpro-stats">
+            <div class="stat-box">
+              <div class="stat-num">4</div>
+              <div class="stat-label">Sectors</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">24/7</div>
+              <div class="stat-label">Monitoring</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">IoT</div>
+              <div class="stat-label">Powered</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-cards" style="grid-template-columns: repeat(4,1fr);">
+
+          <a href="https://olivetshub.github.io/airpro_universities-/" target="_blank" class="sub-card sub-card-uni">
+            <div class="sub-icon">🎓</div>
+            <div class="sub-cat">Academic</div>
+            <div class="sub-name">Universities</div>
+            <p class="sub-desc">Air quality insights, analytics, and reporting tailored for university campuses and research environments.</p>
+            <div class="sub-cta">
+              Open Dashboard
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+
+          <a href="https://olivetshub.github.io/airpro_bank/" target="_blank" class="sub-card sub-card-bank">
+            <div class="sub-icon">🏦</div>
+            <div class="sub-cat">Financial</div>
+            <div class="sub-name">Banks</div>
+            <p class="sub-desc">Environmental monitoring and compliance dashboards purpose-built for banking institutions and financial facilities.</p>
+            <div class="sub-cta">
+              Open Dashboard
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+
+          <a href="https://olivetshub.github.io/Airpro-colleges/" target="_blank" class="sub-card sub-card-col">
+            <div class="sub-icon">🏫</div>
+            <div class="sub-cat">Education</div>
+            <div class="sub-name">Colleges</div>
+            <p class="sub-desc">Indoor air quality monitoring, reporting tools, and actionable insights built for college campuses.</p>
+            <div class="sub-cta">
+              Open Dashboard
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+
+          <a href="https://olivetshub.github.io/airpro_healthcare/" target="_blank" class="sub-card sub-card-health">
+            <div class="sub-icon">🏥</div>
+            <div class="sub-cat">Medical</div>
+            <div class="sub-name">Healthcare</div>
+            <p class="sub-desc">Real-time environmental monitoring for hospitals and clinics — air quality and compliance standards that protect patients and staff.</p>
+            <div class="sub-cta">
+              Open Dashboard
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- SW / EWR BLOCK -->
+      <div style="margin-top:40px;" class="airpro-block" id="sw-block">
+        <div class="airpro-header" style="background: linear-gradient(135deg,#F3EEFF 0%,#F4F7FB 100%);">
+          <div>
+            <div class="airpro-eyebrow" style="color:#6438B4;">
+              <span style="width:20px;height:2px;background:#6438B4;display:inline-block;"></span>
+              IoT Solution
+            </div>
+            <div class="airpro-name" style="color:var(--text);">Strategic <span style="color:#6438B4;">Warehousing</span></div>
+            <div class="airpro-tagline">Electronic Warehousing Receipt (EWR) — smart warehouse monitoring, digital receipt issuance, inventory intelligence, and compliance for modern storage facilities.</div>
+          </div>
+          <div class="airpro-stats">
+            <div class="stat-box"><div class="stat-num" style="color:#6438B4;">IoT</div><div class="stat-label">Powered</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#6438B4;">24/7</div><div class="stat-label">Monitoring</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#6438B4;">Live</div><div class="stat-label">Soon</div></div>
+          </div>
+        </div>
+        <div class="sub-cards" style="grid-template-columns:1fr;">
+          <a href="https://olivetshub.github.io/StratEgic-Warehouse-EWR-/" target="_blank" class="sub-card" style="border-right:none;">
+            <div class="sub-icon" style="background:rgba(100,56,180,0.1);">🏭</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:10.5px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:#6438B4;margin-bottom:8px;">Electronic Warehousing Receipt (EWR)</div>
+            <div class="sub-name">Strategic Warehousing</div>
+            <p class="sub-desc">A secure digital platform for issuing and managing Electronic Warehousing Receipts (EWR) — enabling seamless tracking, verification, audit trails, and environmental monitoring for stored commodities. Dashboard link will be available shortly.</p>
+            <div class="sub-cta" style="color:#6438B4;">
+              Open Dashboard
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- REMOTE WELL MANAGEMENT BLOCK -->
+      <div style="margin-top:40px;" class="airpro-block" id="rwm-block">
+        <div class="airpro-header" style="background: linear-gradient(135deg,#E8F4FF 0%,#F4F7FB 100%);">
+          <div>
+            <div class="airpro-eyebrow" style="color:#0070C0;">
+              <span style="width:20px;height:2px;background:#0070C0;display:inline-block;"></span>
+              IoT Solution
+            </div>
+            <div class="airpro-name" style="color:var(--text);">Remote <span style="color:#0070C0;">Well Management</span></div>
+            <div class="airpro-tagline">Real-time remote monitoring and control of oil & gas wells — live sensor data, automated alerts, and operational dashboards for field management.</div>
+          </div>
+          <div class="airpro-stats">
+            <div class="stat-box"><div class="stat-num" style="color:#0070C0;">IoT</div><div class="stat-label">Powered</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#0070C0;">24/7</div><div class="stat-label">Monitoring</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#0070C0;">Live</div><div class="stat-label">Now</div></div>
+          </div>
+        </div>
+        <div class="sub-cards" style="grid-template-columns:repeat(2,1fr);">
+          <a href="https://olivetshub.github.io/engro-dashboard/" target="_blank" class="sub-card">
+            <div class="sub-icon" style="background:rgba(0,112,192,0.1);">🛢️</div>
+            <div class="sub-name">Remote Well Management System</div>
+            <p class="sub-desc">End-to-end remote monitoring and management of oil & gas well operations — real-time sensor telemetry, pressure and flow tracking, automated anomaly alerts, and a centralised operational dashboard for field engineers.</p>
+            <div class="sub-cta" style="color:#0070C0;">
+              Open Dashboard
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+          <a href="https://olivetshub.github.io/Smartwell_webpage/" target="_blank" class="sub-card" style="border-right:none;">
+            <div class="sub-icon" style="background:rgba(0,112,192,0.1);">🌐</div>
+            <div class="sub-name">Smart Well Website</div>
+            <p class="sub-desc">Visit the Smart Well product website for an overview of the platform, features, and capabilities behind the remote well monitoring solution.</p>
+            <div class="sub-cta" style="color:#0070C0;">
+              Visit Website
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- WATER PUMPS MANAGEMENT BLOCK -->
+      <div style="margin-top:40px;" class="airpro-block" id="wpm-block">
+        <div class="airpro-header" style="background: linear-gradient(135deg,#E8F7FF 0%,#F4F7FB 100%);">
+          <div>
+            <div class="airpro-eyebrow" style="color:#0096D6;">
+              <span style="width:20px;height:2px;background:#0096D6;display:inline-block;"></span>
+              IoT Solution
+            </div>
+            <div class="airpro-name" style="color:var(--text);">Water Pumps <span style="color:#0096D6;">Management</span></div>
+            <div class="airpro-tagline">Smart monitoring and control of water pump infrastructure — real-time flow, pressure, and performance tracking to ensure reliable water distribution.</div>
+          </div>
+          <div class="airpro-stats">
+            <div class="stat-box"><div class="stat-num" style="color:#0096D6;">IoT</div><div class="stat-label">Powered</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#0096D6;">24/7</div><div class="stat-label">Monitoring</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#0096D6;">Live</div><div class="stat-label">Now</div></div>
+          </div>
+        </div>
+        <div class="sub-cards" style="grid-template-columns:1fr;">
+          <a href="https://olivetshub.github.io/dewa-dashboard/" target="_blank" class="sub-card" style="border-right:none;">
+            <div class="sub-icon" style="background:rgba(0,150,214,0.1);">💧</div>
+            <div class="sub-name">Water Pumps Management</div>
+            <p class="sub-desc">Centralised IoT dashboard for monitoring and managing water pump networks — real-time flow rates, pressure levels, energy consumption, fault detection, and automated alerts to keep water infrastructure running at peak efficiency.</p>
+            <div class="sub-cta" style="color:#0096D6;">
+              Open Dashboard
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- AIRPRO WEBSITE BLOCK -->
+      <div style="margin-top:40px;" class="airpro-block" id="airpro-web-block">
+        <div class="airpro-header" style="background: linear-gradient(135deg,#EAF1FA 0%,#F4F7FB 100%);">
+          <div>
+            <div class="airpro-eyebrow" style="color:#1976D2;">
+              <span style="width:20px;height:2px;background:#1976D2;display:inline-block;"></span>
+              IoT Solution
+            </div>
+            <div class="airpro-name" style="color:var(--text);">AIRPRO <span style="color:#1976D2;">Website</span></div>
+            <div class="airpro-tagline">Learn more about the AIRPRO platform, plus live cold-chain monitoring dashboards built on it — environmental intelligence, air quality monitoring, and compliance solutions.</div>
+          </div>
+          <div class="airpro-stats">
+            <div class="stat-box"><div class="stat-num" style="color:#1976D2;">IoT</div><div class="stat-label">Powered</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#1976D2;">24/7</div><div class="stat-label">Monitoring</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#1976D2;">Live</div><div class="stat-label">Now</div></div>
+          </div>
+        </div>
+        <div class="sub-cards" style="grid-template-columns:repeat(3,1fr);">
+          <a href="https://olivetshub.github.io/AIRPRO/" target="_blank" class="sub-card">
+            <div class="sub-icon" style="background:rgba(25,118,210,0.1);">🌬️</div>
+            <div class="sub-name">AIRPRO Website</div>
+            <p class="sub-desc">Visit the official AIRPRO website to explore the platform overview, capabilities, and the full range of environmental monitoring solutions.</p>
+            <div class="sub-cta" style="color:#1976D2;">
+              Visit Website
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+          <a href="https://walls-cold-chain-storage-mfnx-nine.vercel.app/" target="_blank" class="sub-card">
+            <div class="sub-icon" style="background:rgba(25,118,210,0.1);">🍦</div>
+            <div class="sub-name">Walls Cold Storage</div>
+            <p class="sub-desc">AIRPRO-powered cold chain monitoring for Wall's Ice Cream storage — real-time temperature and environmental tracking to protect product integrity.</p>
+            <div class="sub-cta" style="color:#1976D2;">
+              Open Dashboard
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+          <a href="https://chillcola.vercel.app/" target="_blank" class="sub-card" style="border-right:none;">
+            <div class="sub-icon" style="background:rgba(25,118,210,0.1);">🥤</div>
+            <div class="sub-name">Chill Cola</div>
+            <p class="sub-desc">AIRPRO-powered cold storage monitoring for Chill Cola — real-time temperature tracking and environmental alerts across storage facilities.</p>
+            <div class="sub-cta" style="color:#1976D2;">
+              Open Dashboard
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- PASSCO BLOCK -->
+      <div style="margin-top:40px;" class="airpro-block" id="passco-block">
+        <div class="airpro-header" style="background: linear-gradient(135deg,#FBF3E1 0%,#F4F7FB 100%);">
+          <div>
+            <div class="airpro-eyebrow" style="color:#B8860B;">
+              <span style="width:20px;height:2px;background:#B8860B;display:inline-block;"></span>
+              IoT Solution
+            </div>
+            <div class="airpro-name" style="color:var(--text);">PASSCO <span style="color:#B8860B;">Wheat Warehouse Monitoring</span></div>
+            <div class="airpro-tagline">Pakistan Agricultural Storage & Services Corporation — smart monitoring of wheat warehouses, tracking storage conditions and inventory integrity in real time.</div>
+          </div>
+          <div class="airpro-stats">
+            <div class="stat-box"><div class="stat-num" style="color:#B8860B;">IoT</div><div class="stat-label">Powered</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#B8860B;">24/7</div><div class="stat-label">Monitoring</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#B8860B;">Live</div><div class="stat-label">Now</div></div>
+          </div>
+        </div>
+        <div class="sub-cards" style="grid-template-columns:1fr;">
+          <a href="https://olivetshub.github.io/PASSCO-Wheat-Warehouse-Monitoring/" target="_blank" class="sub-card" style="border-right:none;">
+            <div class="sub-icon" style="background:rgba(184,134,11,0.1);">🌾</div>
+            <div class="sub-name">Wheat Warehouse Monitoring</div>
+            <p class="sub-desc">Real-time monitoring of grain storage facilities for PASSCO — temperature, humidity, pest and spoilage risk tracking, and centralised reporting across wheat warehouses.</p>
+            <div class="sub-cta" style="color:#B8860B;">
+              Open Dashboard
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- ON-FARM WATER MANAGEMENT BLOCK -->
+      <div style="margin-top:40px;" class="airpro-block" id="ofw-block">
+        <div class="airpro-header" style="background: linear-gradient(135deg,#E8F5E9 0%,#F4F7FB 100%);">
+          <div>
+            <div class="airpro-eyebrow" style="color:#2E7D32;">
+              <span style="width:20px;height:2px;background:#2E7D32;display:inline-block;"></span>
+              IoT Solution
+            </div>
+            <div class="airpro-name" style="color:var(--text);">On-Farm Water <span style="color:#2E7D32;">Management</span></div>
+            <div class="airpro-tagline">Smart irrigation monitoring — real-time soil moisture, water usage, and flow tracking to optimise on-farm water resources.</div>
+          </div>
+          <div class="airpro-stats">
+            <div class="stat-box"><div class="stat-num" style="color:#2E7D32;">IoT</div><div class="stat-label">Powered</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#2E7D32;">24/7</div><div class="stat-label">Monitoring</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#2E7D32;">Live</div><div class="stat-label">Now</div></div>
+          </div>
+        </div>
+        <div class="sub-cards" style="grid-template-columns:1fr;">
+          <a href="https://olivetshub.github.io/OnFarmWaterManagement/" target="_blank" class="sub-card" style="border-right:none;">
+            <div class="sub-icon" style="background:rgba(46,125,50,0.1);">🌱</div>
+            <div class="sub-name">Smart Irrigation Monitoring</div>
+            <p class="sub-desc">Centralised dashboard for on-farm water management — soil moisture levels, irrigation scheduling, water flow tracking, and automated alerts for efficient farm water use.</p>
+            <div class="sub-cta" style="color:#2E7D32;">
+              Open Dashboard
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- HEY DIAL BLOCK -->
+      <div style="margin-top:40px;" class="airpro-block" id="heydial-block">
+        <div class="airpro-header" style="background: linear-gradient(135deg,#E3F2FD 0%,#F4F7FB 100%);">
+          <div>
+            <div class="airpro-eyebrow" style="color:#0288D1;">
+              <span style="width:20px;height:2px;background:#0288D1;display:inline-block;"></span>
+              Web Platform
+            </div>
+            <div class="airpro-name" style="color:var(--text);">Hey<span style="color:#0288D1;">Dial</span></div>
+            <div class="airpro-tagline">A website that generates AI calling agents for your business in just 5 minutes.</div>
+          </div>
+          <div class="airpro-stats">
+            <div class="stat-box"><div class="stat-num" style="color:#0288D1;">AI</div><div class="stat-label">Powered</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#0288D1;">5 Min</div><div class="stat-label">Setup</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#0288D1;">Live</div><div class="stat-label">Now</div></div>
+          </div>
+        </div>
+        <div class="sub-cards" style="grid-template-columns:1fr;">
+          <a href="https://heydial.netlify.app/" target="_blank" class="sub-card" style="border-right:none;">
+            <div class="sub-icon" style="background:rgba(2,136,209,0.1);">📞</div>
+            <div class="sub-name">HeyDial</div>
+            <p class="sub-desc">Generate a custom AI calling agent for your business in minutes — no code, no setup hassle, just a ready-to-use voice agent.</p>
+            <div class="sub-cta" style="color:#0288D1;">
+              Open Website
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <div class="category-header">
+        <div class="category-label"><span class="cat-dot" style="background:#D81B60;"></span>Mobile Apps</div>
+      </div>
+
+      <!-- ELDRACARE BLOCK -->
+      <div style="margin-top:40px;" class="airpro-block" id="eldracare-block">
+        <div class="airpro-header" style="background: linear-gradient(135deg,#F3E8FA 0%,#F4F7FB 100%);">
+          <div>
+            <div class="airpro-eyebrow" style="color:#6A1B9A;">
+              <span style="width:20px;height:2px;background:#6A1B9A;display:inline-block;"></span>
+              Mobile Application
+            </div>
+            <div class="airpro-name" style="color:var(--text);">Eldra<span style="color:#6A1B9A;">Care</span></div>
+            <div class="airpro-tagline">Smart elderly care companion device — real-time health and safety monitoring paired with a mobile app that keeps caregivers connected and informed.</div>
+          </div>
+          <div class="airpro-stats">
+            <div class="stat-box"><div class="stat-num" style="color:#6A1B9A;">IoT</div><div class="stat-label">Powered</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#6A1B9A;">24/7</div><div class="stat-label">Monitoring</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#6A1B9A;">Mobile</div><div class="stat-label">App</div></div>
+          </div>
+        </div>
+        <div class="sub-cards" style="grid-template-columns:1fr;">
+          <div class="sub-card" style="cursor:default;border-right:none;">
+            <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(106,27,154,0.1);border:1px solid rgba(106,27,154,0.25);border-radius:4px;padding:4px 10px;font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#6A1B9A;margin-bottom:20px;">
+              💜 Smart Elderly Care Device
+            </div>
+            <div class="sub-name">EldraCare</div>
+            <p class="sub-desc">A smart elderly care device and companion mobile app — giving families and caregivers real-time visibility into wellbeing, activity, and safety alerts for loved ones.</p>
+            <a href="https://github.com/olivetshub/eldracareApp/tree/natalia/eldracare_v2" target="_blank" class="sub-cta" style="color:#6A1B9A;">
+              View Code on GitHub
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+            <div class="screenshot-row">
+              <img src="eldracare-screenshot-1-login.jpg" alt="EldraCare login screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="eldracare-screenshot-2-who-are-you.jpg" alt="EldraCare choose role screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="eldracare-screenshot-3-your-details.jpg" alt="EldraCare account details screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="eldracare-screenshot-4-home-dashboard.jpg" alt="EldraCare home dashboard" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="eldracare-screenshot-5-current-status.jpg" alt="EldraCare current status screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="eldracare-screenshot-6-alert-center.jpg" alt="EldraCare alert center screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="eldracare-screenshot-7-profile.jpg" alt="EldraCare profile screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="eldracare-screenshot-8-guardian-home.jpg" alt="EldraCare guardian home screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="eldracare-screenshot-9-guardian-dashboard.jpg" alt="EldraCare guardian dashboard" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="eldracare-screenshot-10-alert-history.jpg" alt="EldraCare alert history screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="eldracare-screenshot-11-pairing-code.jpg" alt="EldraCare guardian pairing code screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="eldracare-screenshot-12-guardian-controls.jpg" alt="EldraCare guardian controls screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FAIRFARE CARPOOL BLOCK -->
+      <div style="margin-top:40px;" class="airpro-block" id="fairfare-block">
+        <div class="airpro-header" style="background: linear-gradient(135deg,#FFF1E3 0%,#F4F7FB 100%);">
+          <div>
+            <div class="airpro-eyebrow" style="color:#EF6C00;">
+              <span style="width:20px;height:2px;background:#EF6C00;display:inline-block;"></span>
+              Mobile Application
+            </div>
+            <div class="airpro-name" style="color:var(--text);">Fair<span style="color:#EF6C00;">Fare</span> Carpool</div>
+            <div class="airpro-tagline">Smart carpooling mobile application — connecting riders and drivers for cost-effective, convenient, and eco-friendly shared commutes.</div>
+          </div>
+          <div class="airpro-stats">
+            <div class="stat-box"><div class="stat-num" style="color:#EF6C00;">Shared</div><div class="stat-label">Rides</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#EF6C00;">Real-Time</div><div class="stat-label">Matching</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#EF6C00;">Mobile</div><div class="stat-label">App</div></div>
+          </div>
+        </div>
+        <div class="sub-cards" style="grid-template-columns:1fr;">
+          <div class="sub-card" style="cursor:default;border-right:none;">
+            <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(239,108,0,0.1);border:1px solid rgba(239,108,0,0.25);border-radius:4px;padding:4px 10px;font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#EF6C00;margin-bottom:20px;">
+              🚗 Carpool Mobile App
+            </div>
+            <div class="sub-name">FairFare Carpool</div>
+            <p class="sub-desc">A carpooling mobile application that connects riders and drivers heading the same way — smart route matching, fair cost-sharing, and a convenient way to commute together.</p>
+            <a href="https://github.com/olivetshub/FairFare-Carpool" target="_blank" class="sub-cta" style="color:#EF6C00;">
+              View Code on GitHub
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+            <div class="screenshot-row">
+              <img src="fairfare-screenshot-1-signin.jpg" alt="FairFare Carpool sign-in screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="fairfare-screenshot-2-company-details.jpg" alt="FairFare Carpool company details" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="fairfare-screenshot-3-verify-email.jpg" alt="FairFare Carpool verify email" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="fairfare-screenshot-4-home.jpg" alt="FairFare Carpool home dashboard" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="fairfare-screenshot-5-find-ride.jpg" alt="FairFare Carpool find and book a ride" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="fairfare-screenshot-6-confirm-booking.jpg" alt="FairFare Carpool confirm booking" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="fairfare-screenshot-7-set-route.jpg" alt="FairFare Carpool set route" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="fairfare-screenshot-8-ride-details.jpg" alt="FairFare Carpool ride details" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="fairfare-screenshot-9-manage-ride.jpg" alt="FairFare Carpool manage ride" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="fairfare-screenshot-10-ride-chat.jpg" alt="FairFare Carpool ride chat" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="fairfare-screenshot-11-ride-in-progress.jpg" alt="FairFare Carpool ride in progress" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="fairfare-screenshot-12-profile.jpg" alt="FairFare Carpool profile" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SOLAR MONITORING APP BLOCK -->
+      <div style="margin-top:40px;" class="airpro-block" id="solar-block">
+        <div class="airpro-header" style="background: linear-gradient(135deg,#FFF8E1 0%,#F4F7FB 100%);">
+          <div>
+            <div class="airpro-eyebrow" style="color:#F9A825;">
+              <span style="width:20px;height:2px;background:#F9A825;display:inline-block;"></span>
+              Mobile Application
+            </div>
+            <div class="airpro-name" style="color:var(--text);">Solar <span style="color:#F9A825;">Monitoring App</span></div>
+            <div class="airpro-tagline">Solar plant monitoring mobile application — live generation data, plant health, O&amp;M ticketing, and reporting for solar power plants.</div>
+          </div>
+          <div class="airpro-stats">
+            <div class="stat-box"><div class="stat-num" style="color:#F9A825;">Multi</div><div class="stat-label">Plant</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#F9A825;">Real-Time</div><div class="stat-label">Generation</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#F9A825;">Mobile</div><div class="stat-label">App</div></div>
+          </div>
+        </div>
+        <div class="sub-cards" style="grid-template-columns:1fr;">
+          <div class="sub-card" style="cursor:default;border-right:none;">
+            <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(249,168,37,0.1);border:1px solid rgba(249,168,37,0.25);border-radius:4px;padding:4px 10px;font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#F9A825;margin-bottom:20px;">
+              ☀️ Solar Plant Monitoring App
+            </div>
+            <div class="sub-name">Solar Monitoring App</div>
+            <p class="sub-desc">A mobile application for monitoring solar power plants — live generation and weather data, per-plant hourly output, O&amp;M ticket management, downloadable reports, and plant-level settings and alerts.</p>
+            <a href="https://github.com/olivetshub/Solar-Monitoring-App" target="_blank" class="sub-cta" style="color:#F9A825;">
+              View Code on GitHub
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+            <div class="screenshot-row">
+              <img src="solar-screenshot-1-signin.jpg" alt="Solar Monitoring App sign-in screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="solar-screenshot-2-forgot-password.jpg" alt="Solar Monitoring App forgot password screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="solar-screenshot-3-create-account.jpg" alt="Solar Monitoring App create account screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="solar-screenshot-4-dashboard.jpg" alt="Solar Monitoring App dashboard" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="solar-screenshot-5-plant-hourly-data.jpg" alt="Solar Monitoring App plant hourly data" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="solar-screenshot-6-om-tickets.jpg" alt="Solar Monitoring App O&M tickets" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="solar-screenshot-7-plant-output-chart.jpg" alt="Solar Monitoring App plant output chart" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="solar-screenshot-8-reports.jpg" alt="Solar Monitoring App reports screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="solar-screenshot-9-new-ticket.jpg" alt="Solar Monitoring App new ticket screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="solar-screenshot-10-settings.jpg" alt="Solar Monitoring App settings screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MORNING ROUTINE APP BLOCK -->
+      <div style="margin-top:40px;" class="airpro-block" id="morning-routine-block">
+        <div class="airpro-header" style="background: linear-gradient(135deg,#FFF0F5 0%,#F4F7FB 100%);">
+          <div>
+            <div class="airpro-eyebrow" style="color:#D81B60;">
+              <span style="width:20px;height:2px;background:#D81B60;display:inline-block;"></span>
+              Mobile Application
+            </div>
+            <div class="airpro-name" style="color:var(--text);">Morning <span style="color:#D81B60;">Routine</span></div>
+            <div class="airpro-tagline">A mobile application for building and tracking a personal morning routine.</div>
+          </div>
+          <div class="airpro-stats">
+            <div class="stat-box"><div class="stat-num" style="color:#D81B60;">Daily</div><div class="stat-label">Habits</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#D81B60;">Mobile</div><div class="stat-label">App</div></div>
+          </div>
+        </div>
+        <div class="sub-cards" style="grid-template-columns:1fr;">
+          <div class="sub-card" style="cursor:default;border-right:none;">
+            <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(216,27,96,0.1);border:1px solid rgba(216,27,96,0.25);border-radius:4px;padding:4px 10px;font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#D81B60;margin-bottom:20px;">
+              🌅 Morning Routine App
+            </div>
+            <div class="sub-name">Morning Routine</div>
+            <p class="sub-desc">A mobile app for planning and tracking a personal morning routine, helping build consistent daily habits.</p>
+            <a href="https://github.com/olivetshub/Morning-Routine" target="_blank" class="sub-cta" style="color:#D81B60;">
+              View Code on GitHub
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+            <div class="screenshot-row">
+              <img src="morning-screenshot-1-login.jpg" alt="Morning Routine login screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="morning-screenshot-2-reset-password.jpg" alt="Morning Routine reset password screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="morning-screenshot-3-create-account.jpg" alt="Morning Routine create account screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="morning-screenshot-4-choose-goal.jpg" alt="Morning Routine choose goal screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="morning-screenshot-5-add-activity.jpg" alt="Morning Routine add your own activity screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="morning-screenshot-6-choose-template.jpg" alt="Morning Routine choose your template screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="morning-screenshot-7-routine-progress.jpg" alt="Morning Routine progress screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="morning-screenshot-8-routine-complete.jpg" alt="Morning Routine complete screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="morning-screenshot-9-stats.jpg" alt="Morning Routine stats screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="morning-screenshot-10-profile.jpg" alt="Morning Routine profile screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="morning-screenshot-11-notifications.jpg" alt="Morning Routine notifications screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="morning-screenshot-12-calendar-history.jpg" alt="Morning Routine calendar history screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="morning-screenshot-13-edit-profile.jpg" alt="Morning Routine edit profile screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+              <img src="morning-screenshot-14-settings.jpg" alt="Morning Routine settings screen" class="screenshot-slot" data-clickable="true" style="object-fit:cover;border:1px solid var(--border);" onclick="openLightbox(this)">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="category-header">
+        <div class="category-label"><span class="cat-dot" style="background:#B71C1C;"></span>IoT Systems</div>
+      </div>
+
+      <!-- SMART GUARD PRO BLOCK -->
+      <div class="airpro-block" id="sgp-block">
+        <div class="airpro-header" style="background: linear-gradient(135deg,#FBEAEA 0%,#F4F7FB 100%);">
+          <div>
+            <div class="airpro-eyebrow" style="color:#B71C1C;">
+              <span style="width:20px;height:2px;background:#B71C1C;display:inline-block;"></span>
+              IoT Solution
+            </div>
+            <div class="airpro-name" style="color:var(--text);">Smart <span style="color:#B71C1C;">Guard Pro</span></div>
+            <div class="airpro-tagline">Intelligent security and surveillance IoT device — real-time monitoring, smart detection, and automated alerts built for site protection.</div>
+          </div>
+          <div class="airpro-stats">
+            <div class="stat-box"><div class="stat-num" style="color:#B71C1C;">IoT</div><div class="stat-label">Powered</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#B71C1C;">24/7</div><div class="stat-label">Monitoring</div></div>
+            <div class="stat-box"><div class="stat-num" style="color:#B71C1C;">Live</div><div class="stat-label">Demo</div></div>
+          </div>
+        </div>
+        <div class="sub-cards" style="grid-template-columns:1fr;">
+          <div class="sub-card" style="cursor:default;border-right:none;">
+            <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(183,28,28,0.1);border:1px solid rgba(183,28,28,0.25);border-radius:4px;padding:4px 10px;font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#B71C1C;margin-bottom:20px;">
+              🛡️ Security IoT Device
+            </div>
+            <div class="sub-name">Smart Guard Pro</div>
+            <p class="sub-desc">A dedicated security and surveillance IoT device delivering real-time monitoring, smart detection, and automated alerting for site protection. Watch the demo below to see it in action.</p>
+            <video controls preload="metadata" style="width:100%;border-radius:12px;margin-top:8px;background:#000;display:block;">
+              <source src="Smart%20Gaurd%20Pro.mp4" type="video/mp4">
+              Your browser does not support the video tag.
+            </video>
+            <a href="https://github.com/olivetshub/smartguard_pro-thingsboard-dashbaord-" target="_blank" class="sub-cta" style="color:#B71C1C;margin-top:24px;">
+              View Code on GitHub
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2.5 7.5h10M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <footer>
+    <div class="footer-logo">
+      <img src="LOGO.png" alt="OLIVE" />
+    </div>
+    <p class="footer-text">© 2025 <strong>OLIVE Technical Services Private Limited</strong> · All rights reserved.</p>
+  </footer>
+
+  <script>
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(el => { if (el.isIntersecting) el.target.classList.add('visible'); });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.section-header, .category-header, .airpro-block, #health-block, #sw-block, #rwm-block, #wpm-block, #airpro-web-block, #passco-block, #ofw-block, #heydial-block, #sgp-block, #eldracare-block, #fairfare-block, #solar-block, #morning-routine-block').forEach(el => observer.observe(el));
+
+    // Sync Healthcare nav entry with the Healthcare card link
+    const healthCard = document.querySelector('a.sub-card-health[href]');
+    const navHealthEntry = document.getElementById('nav-health-entry');
+    const navHealthBadge = document.getElementById('nav-health-badge');
+    if (healthCard && navHealthEntry) {
+      const href = healthCard.getAttribute('href');
+      if (href && href !== '#') {
+        const navLink = document.createElement('a');
+        navLink.href = href;
+        navLink.target = '_blank';
+        navLink.className = 'sub-link';
+        navLink.innerHTML = '<span class="dot dot-health"></span> Healthcare';
+        navHealthEntry.replaceWith(navLink);
+      }
+    }
+  </script>
+
+  <!-- ── SCREENSHOT LIGHTBOX ── -->
+  <div id="lightbox-overlay" onclick="closeLightbox()">
+    <button id="lightbox-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
+    <button id="lightbox-prev" class="lightbox-btn" onclick="lightboxPrev(event)" aria-label="Previous">&#8249;</button>
+    <img id="lightbox-img" src="" alt="" onclick="event.stopPropagation()">
+    <button id="lightbox-next" class="lightbox-btn" onclick="lightboxNext(event)" aria-label="Next">&#8250;</button>
+    <div id="lightbox-counter"></div>
+  </div>
+  <script>
+    let __lightboxImgs = [];
+    let __lightboxIndex = 0;
+
+    function openLightbox(imgEl) {
+      const row = imgEl.closest('.screenshot-row');
+      const imgs = Array.from(row.querySelectorAll('img[data-clickable="true"]'));
+      __lightboxImgs = imgs.map(i => ({ src: i.src, alt: i.alt }));
+      __lightboxIndex = imgs.indexOf(imgEl);
+      renderLightbox();
+      document.getElementById('lightbox-overlay').style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+
+    function renderLightbox() {
+      const data = __lightboxImgs[__lightboxIndex];
+      const imgEl = document.getElementById('lightbox-img');
+      imgEl.src = data.src;
+      imgEl.alt = data.alt;
+      document.getElementById('lightbox-counter').textContent = (__lightboxIndex + 1) + ' / ' + __lightboxImgs.length;
+    }
+
+    function lightboxNext(e) {
+      if (e) e.stopPropagation();
+      __lightboxIndex = (__lightboxIndex + 1) % __lightboxImgs.length;
+      renderLightbox();
+    }
+
+    function lightboxPrev(e) {
+      if (e) e.stopPropagation();
+      __lightboxIndex = (__lightboxIndex - 1 + __lightboxImgs.length) % __lightboxImgs.length;
+      renderLightbox();
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox-overlay').style.display = 'none';
+      document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', (e) => {
+      const overlay = document.getElementById('lightbox-overlay');
+      if (overlay.style.display === 'flex') {
+        if (e.key === 'ArrowRight') lightboxNext(e);
+        else if (e.key === 'ArrowLeft') lightboxPrev(e);
+        else if (e.key === 'Escape') closeLightbox();
+      }
+    });
+  </script>
+</body>
+</html>
